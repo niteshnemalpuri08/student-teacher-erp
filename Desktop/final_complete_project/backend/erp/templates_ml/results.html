@@ -1,0 +1,113 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="flex justify-center items-center min-h-[80vh] px-8 py-12">
+    <!-- Center Container -->
+    <div class="max-w-10xl text-left space-y-6">
+
+        <!-- Heading -->
+        <h2 class="text-4xl sm:text-5xl md:text-5xl text-center font-extrabold capitalize
+                   bg-gradient-to-r from-white to-white/50 bg-clip-text text-transparent"
+            style="letter-spacing: 2px; font-family: 'Clash Grotesk', sans-serif; font-weight: normal !important;">
+            Prediction Results
+        </h2>
+
+        <!-- Description -->
+        <p class="text-gray-300 leading-relaxed capitalize  w-full p-4 bg-[#1C1C1C] rounded-lg">
+            Below is a preview of the predictions. Students marked in
+            <span class="bg-red-600 text-white px-2 py-1 rounded text-sm">HIGH RISK</span>
+            are predicted to score below the threshold you set.
+        </p>
+
+        <!-- Results Table -->
+        <div class="overflow-x-hidden">
+            <div class="max-h-[500px] max-w-full overflow-x-hidden overflow-y-auto rounded-lg custom-table">
+                {{ table_html | safe }}
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-4 mt-6">
+            <a href="{{ download_url }}" class="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-light shadow-lg text-sm
+                       hover:text-gray-300 transition duration-300 ease-in-out bg-[#1C1C1C]"
+                style="letter-spacing: 2px; font-family: 'General Sans', sans-serif;">
+                <span class="bg-[#393939] p-2 rounded-lg flex items-center">
+                    <i class='bx bx-download text-lg'></i>
+                </span>
+                Download Full Results
+            </a>
+
+            <a href="{{ url_for('upload') }}" class="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-light shadow-lg text-sm
+                       hover:text-gray-300 transition duration-300 ease-in-out bg-[#1C1C1C]"
+                style="letter-spacing: 2px; font-family: 'General Sans', sans-serif;">
+                <span class="bg-[#393939] p-2 rounded-lg flex items-center">
+                    <i class='bx bx-upload text-lg'></i>
+                </span>
+                Upload Another File
+            </a>
+
+            <a href="{{ url_for('model_report') }}" class="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-light shadow-lg text-sm
+                       hover:text-gray-300 transition duration-300 ease-in-out bg-[#1C1C1C]"
+                style="letter-spacing: 2px; font-family: 'General Sans', sans-serif;">
+                <span class="bg-[#393939] p-2 rounded-lg flex items-center">
+                    <i class='bx bx-bar-chart-alt-2 text-lg'></i>
+                </span>
+                View Charts & Analytics
+            </a>
+
+            <a href="{{ url_for('index') }}" class="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-light shadow-lg text-sm
+                       hover:text-gray-300 transition duration-300 ease-in-out bg-[#1C1C1C]"
+                style="letter-spacing: 2px; font-family: 'General Sans', sans-serif;">
+                <span class="bg-[#393939] p-2 rounded-lg flex items-center">
+                    <i class='bx bx-left-arrow-alt text-lg'></i>
+                </span>
+                Back to Home
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<!-- Custom Table Styling -->
+<style>
+    .custom-table table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 15px;
+        background: none !important;
+        color: #fff;
+        overflow-x: hidden !important;
+        overflow: hidden;
+        font-family: 'General Sans', sans-serif;
+    }
+
+    .custom-table th {
+        background: #1C1C1C;
+        color: #fff;
+        padding: 14px 12px;
+        text-align: center;
+        font-weight: 600;
+        backdrop-filter: blur(15px);
+        position: sticky;
+        font-weight: normal;
+    }
+
+    .custom-table td {
+        background: #1C1C1C;
+        color: #e5e7eb;
+        text-align: center;
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .custom-table::-webkit-scrollbar-thumb {
+        background-color:#fff;
+        border-radius: 10px;
+    }
+
+    .custom-table::-webkit-scrollbar-track {
+        background: transparent;
+    }
+</style>
+{% endblock %}

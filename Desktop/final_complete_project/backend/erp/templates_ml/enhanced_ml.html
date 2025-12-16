@@ -1,0 +1,103 @@
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Performance Prediction — Enhanced</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; max-width: 900px; }
+    .card { padding: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    label { display:block; margin-top:10px; }
+    input[type=number]{ width:100%; padding:8px; margin-top:6px; }
+    button{ padding:10px 16px; margin-top:12px; border-radius:6px; cursor:pointer; }
+    #result { font-weight:700; margin-top:12px; }
+  </style>
+</head>
+<body>
+  <h1>Student Performance Prediction — Demo</h1>
+  <div class="card">
+    <form id="predictForm">
+      <label>Math <input type="number" id="math" value="70"/></label>
+      <label>Physics <input type="number" id="physics" value="65"/></label>
+      <label>Chemistry <input type="number" id="chemistry" value="60"/></label>
+      <label>CS <input type="number" id="cs" value="75"/></label>
+      <label>English <input type="number" id="english" value="80"/></label>
+      <label>Attendance (%) <input type="number" id="attendance" value="90"/></label>
+      <label>Avg Marks <input type="number" id="avg_marks" value="71"/></label>
+      <button type="submit">Predict</button>
+    </form>
+    <div id="result"></div>
+  </div>
+
+  <div class="card">
+    <h3>Prediction Probability Chart</h3>
+    <canvas id="probChart" width="600" height="200"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>Model Metrics</h3>
+    <button id="loadMetrics">Load Metrics</button>
+    <pre id="metrics"></pre>
+  </div>
+
+  <div class="card">
+    <h3>Sample Report Card</h3>
+    <button id="getReport">Get Sample Report</button>
+    <pre id="report"></pre>
+  </div>
+
+<script>
+document.getElementById('predictForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const payload = {
+    math: Number(document.getElementById('math').value),
+    physics: Number(document.getElementById('physics').value),
+    chemistry: Number(document.getElementById('chemistry').value),
+    cs: Number(document.getElementById('cs').value),
+    english: Number(document.getElementById('english').value),
+    attendance: Number(document.getElementById('attendance').value),
+    avg_marks: Number(document.getElementById('avg_marks').value)
+  };
+  const res = await fetch('/ml/predict', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  document.getElementById('result').innerText = 'Prediction: ' + JSON.stringify(data);
+  updateChart(data.probability || 0);
+});
+
+var ctx = document.getElementById('probChart').getContext('2d');
+var chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: ['Fail','Pass'],
+        datasets: [{
+            label: 'Probability',
+            data: [0, 0]
+        }]
+    },
+    options: { scales: { y: { beginAtZero: true, max: 1 } } }
+});
+
+function updateChart(prob){
+    chart.data.datasets[0].data = [1-prob, prob];
+    chart.update();
+}
+
+document.getElementById('loadMetrics').addEventListener('click', async function(){
+  const res = await fetch('/ml/metrics');
+  const data = await res.json();
+  document.getElementById('metrics').innerText = JSON.stringify(data, null, 2);
+});
+
+document.getElementById('getReport').addEventListener('click', async function(){
+  const res = await fetch('/ml/report');
+  const data = await res.json();
+  document.getElementById('report').innerText = JSON.stringify(data, null, 2);
+});
+</script>
+</body>
+</html>
