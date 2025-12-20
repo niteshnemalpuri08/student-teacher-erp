@@ -196,9 +196,13 @@ def generate_analytics_data():
     if not st.session_state.chat_history:
         return None
 
+    # Separate user and assistant messages
+    user_messages = [h for h in st.session_state.chat_history if h.get('role') == 'user']
+    assistant_messages = [h for h in st.session_state.chat_history if h.get('role') == 'assistant']
+
     analytics = {
-        'total_questions': len(st.session_state.chat_history),
-        'total_answers': len([h for h in st.session_state.chat_history if h['answer']]),
+        'total_questions': len(user_messages),
+        'total_answers': len(assistant_messages),
         'avg_answer_length': 0,
         'question_types': {},
         'response_times': [],
@@ -209,13 +213,22 @@ def generate_analytics_data():
 
     # Calculate metrics
     total_answer_length = 0
-    for entry in st.session_state.chat_history:
-        if entry['answer']:
-            total_answer_length += len(entry['answer'].split())
-            analytics['question_length_distribution'].append(len(entry['question'].split()))
+    for assistant_msg in assistant_messages:
+        if assistant_msg.get('content'):
+            total_answer_length += len(assistant_msg['content'].split())
+
+            # Track document usage
+            if assistant_msg.get('sources'):
+                for source in assistant_msg['sources']:
+                    doc_name = source['document']
+                    analytics['document_usage'][doc_name] = analytics['document_usage'].get(doc_name, 0) + 1
+
+    for user_msg in user_messages:
+        if user_msg.get('content'):
+            analytics['question_length_distribution'].append(len(user_msg['content'].split()))
 
             # Categorize question types
-            question_lower = entry['question'].lower()
+            question_lower = user_msg['content'].lower()
             if any(word in question_lower for word in ['what', 'how', 'why', 'when', 'where', 'who']):
                 q_type = 'WH-Questions'
             elif any(word in question_lower for word in ['explain', 'describe', 'define']):
@@ -226,12 +239,6 @@ def generate_analytics_data():
                 q_type = 'General'
 
             analytics['question_types'][q_type] = analytics['question_types'].get(q_type, 0) + 1
-
-            # Track document usage
-            if entry['sources']:
-                for source in entry['sources']:
-                    doc_name = source['document']
-                    analytics['document_usage'][doc_name] = analytics['document_usage'].get(doc_name, 0) + 1
 
     if analytics['total_answers'] > 0:
         analytics['avg_answer_length'] = total_answer_length / analytics['total_answers']
@@ -398,63 +405,83 @@ else:
     # ================================
     st.markdown("### 📋 Detailed Analytics")
 
+    # Prepare dataframes for export
+    success_rate = (analytics['total_answers'] / analytics['total_questions'] * 100) if analytics['total_questions'] > 0 else 0
+    summary_data = {
+        "Metric": ["Total Sessions", "Questions Asked", "Answers Generated", "Success Rate", "Avg Answer Length"],
+        "Value": [
+            len(st.session_state.chat_history),
+            analytics['total_questions'],
+            analytics['total_answers'],
+            f"{success_rate:.1f}%",
+            f"{analytics['avg_answer_length']:.0f}"
+        ]
+    }
+    summary_df = pd.DataFrame(summary_data)
+
+    # Prepare questions dataframe
+    questions_df = None
+    if st.session_state.chat_history:
+        question_data = []
+        session_num = 1
+
+        # Process Q&A pairs
+        for i in range(0, len(st.session_state.chat_history), 2):
+            if i + 1 < len(st.session_state.chat_history):
+                user_msg = st.session_state.chat_history[i]
+                assistant_msg = st.session_state.chat_history[i + 1]
+
+                if user_msg.get('role') == 'user' and assistant_msg.get('role') == 'assistant':
+                    question_text = user_msg.get('content', '')
+                    question_lower = question_text.lower()
+
+                    if any(word in question_lower for word in ['what', 'how', 'why', 'when', 'where', 'who']):
+                        q_type = 'WH-Questions'
+                    elif any(word in question_lower for word in ['explain', 'describe', 'define']):
+                        q_type = 'Explanatory'
+                    elif any(word in question_lower for word in ['compare', 'contrast', 'difference']):
+                        q_type = 'Comparative'
+                    else:
+                        q_type = 'General'
+
+                    question_data.append({
+                        "Session": session_num,
+                        "Question": question_text[:50] + "..." if len(question_text) > 50 else question_text,
+                        "Type": q_type,
+                        "Answered": "Yes" if assistant_msg.get('content') else "No",
+                        "Sources": len(assistant_msg.get('sources', []))
+                    })
+                    session_num += 1
+
+        if question_data:
+            questions_df = pd.DataFrame(question_data)
+
     tab1, tab2, tab3 = st.tabs(["📊 Summary", "❓ Questions", "📄 Documents"])
 
     with tab1:
         st.markdown("#### 📊 Session Summary")
-
-        summary_data = {
-            "Metric": ["Total Sessions", "Questions Asked", "Answers Generated", "Success Rate", "Avg Answer Length"],
-            "Value": [
-                len(st.session_state.chat_history),
-                analytics['total_questions'],
-                analytics['total_answers'],
-                ".1f",
-                ".0f"
-            ]
-        }
-
-        summary_df = pd.DataFrame(summary_data)
         st.dataframe(summary_df, use_container_width=True)
 
     with tab2:
         st.markdown("#### ❓ Question Analysis")
 
-        if st.session_state.chat_history:
-            # Create a table of questions and their types
-            question_data = []
-            for i, entry in enumerate(st.session_state.chat_history):
-                question_lower = entry['question'].lower()
-                if any(word in question_lower for word in ['what', 'how', 'why', 'when', 'where', 'who']):
-                    q_type = 'WH-Questions'
-                elif any(word in question_lower for word in ['explain', 'describe', 'define']):
-                    q_type = 'Explanatory'
-                elif any(word in question_lower for word in ['compare', 'contrast', 'difference']):
-                    q_type = 'Comparative'
-                else:
-                    q_type = 'General'
-
-                question_data.append({
-                    "Session": i + 1,
-                    "Question": entry['question'][:50] + "..." if len(entry['question']) > 50 else entry['question'],
-                    "Type": q_type,
-                    "Answered": "Yes" if entry['answer'] else "No",
-                    "Sources": len(entry['sources']) if entry['sources'] else 0
-                })
-
-            questions_df = pd.DataFrame(question_data)
+        if questions_df is not None:
             st.dataframe(questions_df, use_container_width=True)
+        else:
+            st.info("No question-answer pairs found in chat history.")
 
     with tab3:
         st.markdown("#### 📄 Document Analysis")
 
         if analytics['document_usage']:
             doc_analysis_data = []
+            total_refs = sum(analytics['document_usage'].values())
             for doc, refs in analytics['document_usage'].items():
+                usage_pct = (refs / total_refs * 100) if total_refs > 0 else 0
                 doc_analysis_data.append({
                     "Document": doc,
                     "Total References": refs,
-                    "Usage Percentage": ".1f"
+                    "Usage Percentage": f"{usage_pct:.1f}%"
                 })
 
             doc_df = pd.DataFrame(doc_analysis_data)
@@ -466,7 +493,7 @@ else:
                 x='Document',
                 y='Total References',
                 title="Document Usage Overview",
-                color='Usage Percentage',
+                color='Total References',
                 color_continuous_scale='Greens'
             )
             fig.update_layout(
@@ -494,7 +521,7 @@ else:
             )
 
     with col2:
-        if st.button("📋 Export Questions CSV", use_container_width=True):
+        if st.button("📋 Export Questions CSV", use_container_width=True) and questions_df is not None:
             questions_csv = questions_df.to_csv(index=False)
             st.download_button(
                 label="Download Questions",

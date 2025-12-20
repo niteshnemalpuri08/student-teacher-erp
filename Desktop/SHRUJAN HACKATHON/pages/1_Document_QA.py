@@ -6,170 +6,6 @@ from utils.rag_qa import process_documents, get_answer
 if 'dark_mode' not in st.session_state:
     st.session_state.dark_mode = False
 
-# ================================
-# SESSION STATE INITIALIZATION
-# ================================
-if 'uploaded_files' not in st.session_state:
-    st.session_state.uploaded_files = []
-if 'documents_processed' not in st.session_state:
-    st.session_state.documents_processed = False
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
-if 'current_answer' not in st.session_state:
-    st.session_state.current_answer = None
-if 'current_sources' not in st.session_state:
-    st.session_state.current_sources = []
-if 'current_retrieved_chunks' not in st.session_state:
-    st.session_state.current_retrieved_chunks = []
-if 'show_debug_view' not in st.session_state:
-    st.session_state.show_debug_view = False
-if 'processing_error' not in st.session_state:
-    st.session_state.processing_error = None
-
-
-
-# ================================
-# MAIN PAGE CONTROLS
-# ================================
-
-# Page Header
-st.markdown("""
-    <div class="section-header">
-        <h1 style="margin: 0; font-size: 2.5em; display: flex; align-items: center;">
-            <span style="margin-right: 15px;">🤖</span>
-            Document Q&A
-        </h1>
-        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 1.1em;">Ask questions about your documents with AI-powered answers</p>
-    </div>
-""", unsafe_allow_html=True)
-
-# Theme Toggle at the top
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    theme_icon = "🌙" if not st.session_state.dark_mode else "☀️"
-    if st.button(f"{theme_icon} Toggle Theme", use_container_width=True, help="Switch between light and dark mode"):
-        st.session_state.dark_mode = not st.session_state.dark_mode
-        st.rerun()
-
-st.markdown("---")
-
-# ================================
-# DOCUMENT MANAGEMENT SECTION
-# ================================
-st.markdown("""
-    <div class="content-card">
-        <h2 style="margin: 0 0 20px 0; font-size: 1.8em; display: flex; align-items: center;">
-            <span style="margin-right: 12px;">📤</span>
-            Document Management
-        </h2>
-    </div>
-""", unsafe_allow_html=True)
-
-# File uploader
-uploaded_files = st.file_uploader(
-    "Upload documents (PDF, DOCX, TXT)",
-    type=["pdf", "docx", "txt"],
-    accept_multiple_files=True,
-    key="file_uploader",
-    help="Select multiple documents to analyze"
-)
-
-# Update session state with uploaded files
-if uploaded_files:
-    st.session_state.uploaded_files = uploaded_files
-
-# Display uploaded files and status
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    if st.session_state.uploaded_files:
-        st.markdown("**📋 Uploaded Files:**")
-        file_cols = st.columns(min(len(st.session_state.uploaded_files), 3))
-        for i, file in enumerate(st.session_state.uploaded_files):
-            col_idx = i % 3
-            with file_cols[col_idx]:
-                file_icon = "📄" if file.name.endswith('.pdf') else "📝" if file.name.endswith('.docx') else "📃"
-                st.markdown(f"{file_icon} **{file.name}**")
-
-with col2:
-    # Status indicator
-    if st.session_state.uploaded_files:
-        status_color = "#28a745" if st.session_state.documents_processed else "#ffc107"
-        status_text = "Ready to Process" if not st.session_state.documents_processed else "Documents Processed"
-        status_icon = "⏳" if not st.session_state.documents_processed else "✅"
-        st.markdown(f"### Status\n{status_icon} {status_text}")
-    else:
-        st.markdown("### Status\n⚠️ No documents uploaded")
-
-# Process documents button
-if st.button("🚀 Process Documents", use_container_width=True, type="primary"):
-    with st.spinner("🔄 Processing documents..."):
-        progress_bar = st.progress(0)
-        for i in range(100):
-            time.sleep(0.02)
-            progress_bar.progress(i + 1)
-
-        try:
-            process_documents(st.session_state.uploaded_files)
-            st.session_state.documents_processed = True
-            st.success("✅ Documents processed successfully!")
-            st.balloons()
-        except Exception as e:
-            st.error(f"❌ Error processing documents: {str(e)}")
-        finally:
-            progress_bar.empty()
-
-st.markdown("---")
-
-# ================================
-# CONTROLS SECTION
-# ================================
-st.markdown("""
-    <div class="content-card">
-        <h2 style="margin: 0 0 20px 0; font-size: 1.8em; display: flex; align-items: center;">
-            <span style="margin-right: 12px;">⚙️</span>
-            Controls & Settings
-        </h2>
-    </div>
-""", unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("### 📄 Document Status")
-    if st.session_state.documents_processed:
-        st.success("✅ Documents Processed")
-        st.info(f"📊 {len(st.session_state.uploaded_files)} file(s) loaded")
-    else:
-        st.warning("⚠️ No documents processed yet")
-
-    if st.session_state.processing_error:
-        st.error(f"❌ Processing Error: {st.session_state.processing_error}")
-
-with col2:
-    st.markdown("### 💬 Chat Controls")
-    if st.button("🗑️ Clear Chat History", use_container_width=True):
-        st.session_state.chat_history = []
-        st.session_state.current_answer = None
-        st.session_state.current_sources = []
-        st.session_state.current_retrieved_chunks = []
-        st.success("Chat history cleared!")
-
-    st.markdown("### 🔧 Debug Options")
-    debug_toggle = st.checkbox("Show Debug View", value=st.session_state.show_debug_view, key="debug_toggle")
-    if debug_toggle != st.session_state.show_debug_view:
-        st.session_state.show_debug_view = debug_toggle
-
-with col3:
-    st.markdown("### 📈 Quick Stats")
-    if st.session_state.chat_history:
-        total_questions = len([msg for msg in st.session_state.chat_history if msg['role'] == 'user'])
-        st.metric("Questions Asked", total_questions)
-    else:
-        st.metric("Questions Asked", 0)
-
-st.markdown("---")
-
 # Modern CSS with Enhanced Dark Mode Support
 def get_css(dark_mode=False):
     if dark_mode:
@@ -380,4 +216,300 @@ def get_css(dark_mode=False):
         }
         </style>
         """
+
+# ================================
+# SESSION STATE INITIALIZATION
+# ================================
+if 'uploaded_files' not in st.session_state:
+    st.session_state.uploaded_files = []
+if 'documents_processed' not in st.session_state:
+    st.session_state.documents_processed = False
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+if 'current_answer' not in st.session_state:
+    st.session_state.current_answer = None
+if 'current_sources' not in st.session_state:
+    st.session_state.current_sources = []
+if 'current_retrieved_chunks' not in st.session_state:
+    st.session_state.current_retrieved_chunks = []
+if 'show_debug_view' not in st.session_state:
+    st.session_state.show_debug_view = False
+if 'processing_error' not in st.session_state:
+    st.session_state.processing_error = None
+
+
+
+# ================================
+# MAIN PAGE CONTROLS
+# ================================
+
+# Page Header
+st.markdown("""
+    <div class="section-header">
+        <h1 style="margin: 0; font-size: 2.5em; display: flex; align-items: center;">
+            <span style="margin-right: 15px;">🤖</span>
+            Document Q&A
+        </h1>
+        <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 1.1em;">Ask questions about your documents with AI-powered answers</p>
+    </div>
+""", unsafe_allow_html=True)
+
+# Theme Toggle at the top
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    theme_icon = "🌙" if not st.session_state.dark_mode else "☀️"
+    if st.button(f"{theme_icon} Toggle Theme", use_container_width=True, help="Switch between light and dark mode"):
+        st.session_state.dark_mode = not st.session_state.dark_mode
+        st.rerun()
+
+# Apply CSS based on theme
+st.markdown(get_css(st.session_state.dark_mode), unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ================================
+# DOCUMENT MANAGEMENT SECTION
+# ================================
+st.markdown("""
+    <div class="content-card">
+        <h2 style="margin: 0 0 20px 0; font-size: 1.8em; display: flex; align-items: center;">
+            <span style="margin-right: 12px;">📤</span>
+            Document Management
+        </h2>
+    </div>
+""", unsafe_allow_html=True)
+
+# File uploader
+uploaded_files = st.file_uploader(
+    "Upload documents (PDF, DOCX, TXT)",
+    type=["pdf", "docx", "txt"],
+    accept_multiple_files=True,
+    key="file_uploader",
+    help="Select multiple documents to analyze"
+)
+
+# Update session state with uploaded files
+if uploaded_files:
+    st.session_state.uploaded_files = uploaded_files
+
+# Display uploaded files and status
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    if st.session_state.uploaded_files:
+        st.markdown("**📋 Uploaded Files:**")
+        file_cols = st.columns(min(len(st.session_state.uploaded_files), 3))
+        for i, file in enumerate(st.session_state.uploaded_files):
+            col_idx = i % 3
+            with file_cols[col_idx]:
+                file_icon = "📄" if file.name.endswith('.pdf') else "📝" if file.name.endswith('.docx') else "📃"
+                st.markdown(f"{file_icon} **{file.name}**")
+
+with col2:
+    # Status indicator
+    if st.session_state.uploaded_files:
+        status_color = "#28a745" if st.session_state.documents_processed else "#ffc107"
+        status_text = "Ready to Process" if not st.session_state.documents_processed else "Documents Processed"
+        status_icon = "⏳" if not st.session_state.documents_processed else "✅"
+        st.markdown(f"### Status\n{status_icon} {status_text}")
+    else:
+        st.markdown("### Status\n⚠️ No documents uploaded")
+
+# Process documents button
+if st.button("🚀 Process Documents", use_container_width=True, type="primary"):
+    with st.spinner("🔄 Processing documents..."):
+        progress_bar = st.progress(0)
+        for i in range(100):
+            time.sleep(0.02)
+            progress_bar.progress(i + 1)
+
+        try:
+            process_documents(st.session_state.uploaded_files)
+            st.session_state.documents_processed = True
+            st.success("✅ Documents processed successfully!")
+            st.balloons()
+        except Exception as e:
+            st.error(f"❌ Error processing documents: {str(e)}")
+        finally:
+            progress_bar.empty()
+
+st.markdown("---")
+
+# ================================
+# CONTROLS SECTION
+# ================================
+st.markdown("""
+    <div class="content-card">
+        <h2 style="margin: 0 0 20px 0; font-size: 1.8em; display: flex; align-items: center;">
+            <span style="margin-right: 12px;">⚙️</span>
+            Controls & Settings
+        </h2>
+    </div>
+""", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("### 📄 Document Status")
+    if st.session_state.documents_processed:
+        st.success("✅ Documents Processed")
+        st.info(f"📊 {len(st.session_state.uploaded_files)} file(s) loaded")
+    else:
+        st.warning("⚠️ No documents processed yet")
+
+    if st.session_state.processing_error:
+        st.error(f"❌ Processing Error: {st.session_state.processing_error}")
+
+with col2:
+    st.markdown("### 💬 Chat Controls")
+    if st.button("🗑️ Clear Chat History", use_container_width=True):
+        st.session_state.chat_history = []
+        st.session_state.current_answer = None
+        st.session_state.current_sources = []
+        st.session_state.current_retrieved_chunks = []
+        st.success("Chat history cleared!")
+
+    st.markdown("### 🔧 Debug Options")
+    debug_toggle = st.checkbox("Show Debug View", value=st.session_state.show_debug_view, key="debug_toggle")
+    if debug_toggle != st.session_state.show_debug_view:
+        st.session_state.show_debug_view = debug_toggle
+
+with col3:
+    st.markdown("### 📈 Quick Stats")
+    if st.session_state.chat_history:
+        total_questions = len([msg for msg in st.session_state.chat_history if msg['role'] == 'user'])
+        st.metric("Questions Asked", total_questions)
+    else:
+        st.metric("Questions Asked", 0)
+
+st.markdown("---")
+
+# ================================
+# Q&A INTERFACE SECTION
+# ================================
+st.markdown("""
+    <div class="content-card">
+        <h2 style="margin: 0 0 20px 0; font-size: 1.8em; display: flex; align-items: center;">
+            <span style="margin-right: 12px;">💬</span>
+            Ask Questions
+        </h2>
+    </div>
+""", unsafe_allow_html=True)
+
+# Question input
+question = st.text_input(
+    "Enter your question:",
+    placeholder="Ask anything about your documents...",
+    key="question_input",
+    help="Type your question in natural language"
+)
+
+# Ask question button
+if st.button("🚀 Ask Question", use_container_width=True, type="primary", disabled=not st.session_state.documents_processed):
+    if not st.session_state.documents_processed:
+        st.error("❌ Please process documents first before asking questions.")
+    elif not question.strip():
+        st.warning("⚠️ Please enter a question.")
+    else:
+        with st.spinner("🤖 Thinking..."):
+            try:
+                # Get answer from RAG system
+                result = get_answer(question.strip())
+
+                # Update session state
+                st.session_state.current_answer = result["answer"]
+                st.session_state.current_sources = result["sources"]
+                st.session_state.current_retrieved_chunks = result["retrieved_chunks"]
+
+                # Add to chat history
+                st.session_state.chat_history.append({
+                    "role": "user",
+                    "content": question.strip(),
+                    "timestamp": time.time()
+                })
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": result["answer"],
+                    "sources": result["sources"],
+                    "retrieved_chunks": result["retrieved_chunks"],
+                    "timestamp": time.time()
+                })
+
+                st.success("✅ Answer generated successfully!")
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"❌ Error generating answer: {str(e)}")
+
+st.markdown("---")
+
+# ================================
+# ANSWER DISPLAY SECTION
+# ================================
+if st.session_state.current_answer:
+    st.markdown("""
+        <div class="content-card">
+            <h2 style="margin: 0 0 20px 0; font-size: 1.8em; display: flex; align-items: center;">
+                <span style="margin-right: 12px;">🤖</span>
+                Answer
+            </h2>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Display the answer
+    st.markdown(f"""
+        <div class="assistant-message">
+            <strong>Question:</strong> {st.session_state.chat_history[-2]['content'] if len(st.session_state.chat_history) >= 2 else 'N/A'}<br><br>
+            <strong>Answer:</strong><br>
+            {st.session_state.current_answer}
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Display sources
+    if st.session_state.current_sources:
+        st.markdown("### 📚 Sources")
+        for i, source in enumerate(st.session_state.current_sources, 1):
+            with st.expander(f"📄 Source {i}: {source['document']} (Page {source['page']})"):
+                st.markdown(f"**Snippet:** {source['snippet']}")
+
+    # Debug view
+    if st.session_state.show_debug_view and st.session_state.current_retrieved_chunks:
+        st.markdown("### 🔍 Debug View")
+        with st.expander("Retrieved Chunks"):
+            for i, chunk in enumerate(st.session_state.current_retrieved_chunks[:5], 1):  # Show top 5
+                st.markdown(f"**Chunk {i}** (Similarity: {chunk.get('similarity', 'N/A'):.3f})")
+                st.markdown(f"**Source:** {chunk['metadata']['source']} - Page {chunk['metadata']['page']}")
+                st.text_area(f"Content {i}", chunk['page_content'], height=100, key=f"debug_chunk_{i}")
+
+# ================================
+# CHAT HISTORY SECTION
+# ================================
+if st.session_state.chat_history:
+    st.markdown("---")
+    st.markdown("""
+        <div class="content-card">
+            <h2 style="margin: 0 0 20px 0; font-size: 1.8em; display: flex; align-items: center;">
+                <span style="margin-right: 12px;">📜</span>
+                Chat History
+            </h2>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Display chat history (most recent first)
+    for i in range(len(st.session_state.chat_history) - 1, -1, -2):  # Step by 2 to get Q&A pairs
+        if i >= 1:  # Ensure we have both question and answer
+            user_msg = st.session_state.chat_history[i-1]
+            assistant_msg = st.session_state.chat_history[i]
+
+            with st.expander(f"💬 Q&A Session {len(st.session_state.chat_history)//2 - (len(st.session_state.chat_history)-i)//2}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(f"**🗣️ Question:** {user_msg['content']}")
+                with col2:
+                    st.markdown(f"**🤖 Answer:** {assistant_msg['content'][:200]}{'...' if len(assistant_msg['content']) > 200 else ''}")
+
+                if assistant_msg.get('sources'):
+                    st.markdown("**📚 Sources:**")
+                    for source in assistant_msg['sources'][:3]:  # Show top 3 sources
+                        st.markdown(f"- {source['document']} (Page {source['page']})")
 

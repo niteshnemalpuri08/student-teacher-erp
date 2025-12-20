@@ -75,10 +75,10 @@ def process_documents(files):
     if not documents:
         raise ValueError("No valid text extracted from uploaded files")
 
-    # Enhanced chunking with semantic awareness and larger chunks
+    # Optimized chunking for better performance and accuracy
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1200,
-        chunk_overlap=250,
+        chunk_size=800,  # Reduced from 1200 for better semantic granularity
+        chunk_overlap=200,  # Adjusted from 250 for optimal context continuity
         separators=["\n\n", "\n", ". ", " ", ""],  # Prioritize paragraph breaks
         length_function=len,
         is_separator_regex=False
@@ -96,9 +96,20 @@ def process_documents(files):
     if not chunks:
         raise ValueError("No text chunks created from documents")
 
-    # Create embeddings with improved model
+    # Create embeddings with progress indicators
     model = load_sentence_transformer()
-    embeddings = [model.encode(chunk['page_content']) for chunk in chunks]
+
+    # Add progress bar for embedding generation
+    progress_bar = st.progress(0, text="Generating embeddings...")
+    total_chunks = len(chunks)
+    embeddings = []
+
+    for i, chunk in enumerate(chunks):
+        embedding = model.encode(chunk['page_content'])
+        embeddings.append(embedding)
+        progress_bar.progress((i + 1) / total_chunks, text=f"Generating embeddings... ({i + 1}/{total_chunks})")
+
+    progress_bar.empty()  # Remove progress bar when done
 
     # Create FAISS index with cosine similarity
     dimension = len(embeddings[0])
@@ -113,13 +124,41 @@ def process_documents(files):
         pickle.dump(chunks, f)
 
 def preprocess_question(question):
-    """Clean and optimize question for retrieval"""
+    """Clean and optimize question for retrieval with enhanced query expansion"""
     # Remove extra whitespace
     question = " ".join(question.split())
 
+    # Enhanced query expansion for better retrieval
+    question_lower = question.lower()
+
     # Add context hints for common question types
-    if question.lower().startswith(("what is", "how does", "explain")):
-        question += " Provide details from the documents."
+    if question_lower.startswith(("what is", "what are", "define")):
+        question += " Provide details and explanation from the documents."
+    elif question_lower.startswith(("how does", "how do", "explain")):
+        question += " Provide step-by-step details from the documents."
+    elif question_lower.startswith(("why", "when", "where")):
+        question += " Provide context and reasoning from the documents."
+    elif question_lower.startswith(("who", "which")):
+        question += " Provide specific information from the documents."
+
+    # Add synonyms and related terms for common concepts
+    expansions = {
+        "machine learning": ["ML", "artificial intelligence", "AI"],
+        "data science": ["analytics", "data analysis"],
+        "python": ["programming", "coding"],
+        "algorithm": ["method", "technique", "approach"],
+        "performance": ["efficiency", "speed", "accuracy"],
+        "model": ["system", "framework", "architecture"]
+    }
+
+    # Expand question with synonyms if found
+    expanded_terms = []
+    for term, synonyms in expansions.items():
+        if term in question_lower:
+            expanded_terms.extend(synonyms[:2])  # Limit to 2 synonyms per term
+
+    if expanded_terms:
+        question += f" Related terms: {', '.join(expanded_terms)}."
 
     return question
 
@@ -138,7 +177,7 @@ def load_chunks():
             return pickle.load(f)
     return None
 
-def retrieve_chunks(question, k=5, fetch_k=20, lambda_mult=0.5):
+def retrieve_chunks(question, k=5, fetch_k=15, lambda_mult=0.7):
     """
     Retrieve top-k relevant chunks for a given question using MMR for diversity.
     MMR balances relevance and diversity to avoid redundant chunks.
@@ -302,7 +341,7 @@ def generate_answer(question, retrieved_chunks):
     Output: answer (str)
     """
     # 2️⃣ CONTEXT SUFFICIENCY CHECK
-    if not check_context_sufficiency(retrieved_chunks, similarity_threshold=0.3):
+    if not check_context_sufficiency(retrieved_chunks, similarity_threshold=0.5):
         return "Answer not found in the provided documents."
 
     # Sort chunks by relevance score

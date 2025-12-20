@@ -1,19 +1,28 @@
-# Test pages
-        import pages.Document_QA as qa_page
-        print("✅ Document Q&A page imports successfully")
+# Test pages (note: actual filenames have numbers, can't import directly)
+import os
 
-        import pages.Document_Summary as summary_page
-        print("✅ Document Summary page imports successfully")
+# Test if page files exist
+pages_to_check = [
+    ("pages/1_Document_QA.py", "Document Q&A"),
+    ("pages/2_Document_Summary.py", "Document Summary"),
+    ("pages/3_Analytics_Dashboard.py", "Analytics Dashboard")
+]
 
-        import pages.Analytics_Dashboard as analytics_page
-        print("✅ Analytics Dashboard page imports successfully")
-=======
-        # Test pages (note: actual filenames have numbers)
-        import pages.Document_QA as qa_page  # This will fail, let's use direct import
-        print("✅ Document Q&A page imports successfully")
+for file_path, page_name in pages_to_check:
+    if os.path.exists(file_path):
+        print(f"✅ {page_name} page file exists")
+    else:
+        print(f"❌ {page_name} page file missing: {file_path}")
 
-        import pages.Document_Summary as summary_page
-        print("✅ Document Summary page imports successfully")
+# Test core imports
+try:
+    import streamlit as st
+    print("✅ Streamlit imports successfully")
+except ImportError as e:
+    print(f"❌ Streamlit import failed: {e}")
 
-        import pages.Analytics_Dashboard as analytics_page
-        print("✅ Analytics Dashboard page imports successfully")
+try:
+    from utils.rag_qa import process_documents, get_answer
+    print("✅ RAG QA utils import successfully")
+except ImportError as e:
+    print(f"❌ RAG QA utils import failed: {e}")
