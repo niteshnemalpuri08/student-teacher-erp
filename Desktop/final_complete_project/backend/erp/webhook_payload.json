@@ -1,8 +1,0 @@
-{
-  "event_id": "evt-1001",
-  "source": "institutional_erp",
-  "attendance": [
-    {"roll": "24CSE001", "present": true},
-    {"roll": "24CSE002", "present": false}
-  ]
-}

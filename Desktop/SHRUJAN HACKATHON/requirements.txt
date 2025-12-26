@@ -1,8 +1,0 @@
-streamlit
-numpy
-faiss-cpu
-pypdf
-python-docx
-sentence-transformers
-langchain-text-splitters
-openai
